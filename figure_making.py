@@ -10,7 +10,8 @@ import seaborn as sns
 import pandas as pd
 import scipy.stats as stats
 from statistics import mean, stdev
-
+import numpy as np
+from scipy import stats
 
 #Figures for non-viral transfection project
 
@@ -128,7 +129,7 @@ sns.set_palette(palette)
 neuron_response_amp_ctrl = sns.pointplot(data=data_notrain_by_cell, x = "time group", y = "corrected peaks", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuron_response_amp_ctrl.set_ylim(top=1.5, bottom=0.5)
 neuron_response_amp_ctrl.set_title("Neuron peak amplitude - no training")
-neuron_response_amp_ctrl.set_ylabel("Response amplitude (F/F0)")
+neuron_response_amp_ctrl.set_ylabel("Normalized response amplitude (F/F0)")
 neuron_response_amp_ctrl.set_xlabel("Time (min)")
 sns.stripplot(data = data_notrain_by_cell, x = "time group", y = "corrected peaks", size=5, hue="treatment", dodge=False, legend=False, ax=neuron_response_amp_ctrl, alpha=0.4)
 
@@ -137,7 +138,7 @@ fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained"
 neuron_response_auc_ctrl = sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=data_notrain_by_cell, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuron_response_auc_ctrl.set_ylim(top=1.5, bottom=0.5)
 neuron_response_auc_ctrl.set_title("Neuron auc - no training")
-neuron_response_auc_ctrl.set_ylabel("Response amplitude (F/F0)")
+neuron_response_auc_ctrl.set_ylabel("Normalized response amplitude (F/F0)")
 neuron_response_auc_ctrl.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected area", data = data_notrain_by_cell, size=5, hue="treatment", dodge=False, legend=False, ax=neuron_response_auc_ctrl, alpha=0.4)
 
@@ -152,7 +153,7 @@ sns.set_palette(palette)
 neuron_response_amp_exp= sns.pointplot(x = "time group", y = "corrected peaks", hue = "treatment", data=data_training, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuron_response_amp_exp.set_ylim(top=1.2, bottom=0.6)
 neuron_response_amp_exp.set_title("Neuron peak amplitude - training")
-neuron_response_amp_exp.set_ylabel("Response amplitude (F/F0)")
+neuron_response_amp_exp.set_ylabel("Normalized response amplitude (F/F0)")
 neuron_response_amp_exp.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected peaks", data = data_training, size=5, hue="treatment", dodge=False, legend=False, ax=neuron_response_amp_exp, alpha=0.4)
 
@@ -160,7 +161,7 @@ fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained"
 neuron_response_auc_exp= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=data_training, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuron_response_auc_exp.set_ylim(top=1.2, bottom=0.6)
 neuron_response_auc_exp.set_title("Neuron auc - training")
-neuron_response_auc_exp.set_ylabel("Response amplitude (F/F0)")
+neuron_response_auc_exp.set_ylabel("Normalized response amplitude (F/F0)")
 neuron_response_auc_exp.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected area", data = data_training, size=5, hue="treatment", dodge=False, legend=False, ax=neuron_response_auc_exp, alpha=0.4)
 
@@ -180,7 +181,7 @@ fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained"
 neuropil_norm_auc_ctrl= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=neuropil_norm_anml_ctrl, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #neuron_response_auc_exp.set_ylim(top=1.5, bottom=0.5)
 neuropil_norm_auc_ctrl.set_title("Neuropil auc - without training")
-neuropil_norm_auc_ctrl.set_ylabel("Response AUC (F/F0)")
+neuropil_norm_auc_ctrl.set_ylabel("Normalized response AUC (F/F0)")
 neuropil_norm_auc_ctrl.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected area", data = neuropil_norm_anml_ctrl, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_norm_auc_ctrl, alpha=1)
         
@@ -190,7 +191,7 @@ fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained"
 neuropil_raw_amp_ctrl= sns.pointplot(x = "time group", y = "Normalized au peaks", hue = "treatment", data=neuropil_raw_anml_ctrl, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #neuron_response_auc_exp.set_ylim(top=1.5, bottom=0.5)
 neuropil_raw_amp_ctrl.set_title("Neuropil amplitude - without training")
-neuropil_raw_amp_ctrl.set_ylabel("Response amplitude (a.u.)")
+neuropil_raw_amp_ctrl.set_ylabel("Normalized response amplitude (a.u.)")
 neuropil_raw_amp_ctrl.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "Normalized au peaks", data = neuropil_raw_anml_ctrl, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_raw_amp_ctrl, alpha=1)
 
@@ -202,7 +203,7 @@ fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained"
 neuropil_response_auc_exp= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=neuropil_norm_anml_training, errorbar='se', capsize=0.1, ax=axes)
 #neuron_response_auc_exp.set_ylim(top=1.5, bottom=0.5)
 neuropil_response_auc_exp.set_title("Neuropil auc - with training")
-neuropil_response_auc_exp.set_ylabel("Response AUC (F/F0)")
+neuropil_response_auc_exp.set_ylabel("Normalized response AUC (F/F0)")
 neuropil_response_auc_exp.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected area", data = neuropil_norm_anml_training, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_response_auc_exp, alpha=1)
         
@@ -212,30 +213,113 @@ fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained"
 neuropil_raw_amp_exp= sns.pointplot(x = "time group", y = "Normalized au peaks", hue = "treatment", data=neuropil_raw_anml_exp, errorbar='se', capsize=0.1, ax=axes)
 #neuron_response_auc_exp.set_ylim(top=1.5, bottom=0.5)
 neuropil_raw_amp_exp.set_title("Neuropil amplitude - with training")
-neuropil_raw_amp_exp.set_ylabel("Response amplitude (a.u.)")
+neuropil_raw_amp_exp.set_ylabel("Normalized response amplitude (a.u.)")
 neuropil_raw_amp_exp.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "Normalized au peaks", data = neuropil_raw_anml_exp, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_raw_amp_exp, alpha=1)
 
 
-#CELL LOCATION MATCHING
+#CELL LOCATION MATCHING ------------------------------------------------------------------------------------------
 fig,ax =plt.subplots(figsize = (25,25), layout="constrained")
 ax = sns.heatmap(fltrd_dst_matrix, vmin=np.min(fltrd_dst_matrix), vmax=np.min(fltrd_dst_matrix)*100 ,center=np.min(fltrd_dst_matrix)*10, cbar=False)
 ax.set_ylabel("cell id in current time point")
 ax.set_xlabel("cell id in next time point")
 ax.set_title("Matching cells")
 
-#FIELD POTENTIAL GRAPHS
-NBQX_APV = pd.read_csv("E:/glia projects/field recordings/field_potential_data.csv")
+#------------------------------------------------------------------------------------------------------------------------------
+#FIGURES FOR LOCAL FIELD POTENTIALS
 
-fig,ax =plt.subplots(figsize = (25,10), layout="constrained")
+field_data = pd.read_csv('E:/glia projects/field recordings/field_potential_data.csv')
+field_data=field_data[(field_data["series time"]>=0)&(field_data["series time"]<=47.5)].sort_values(by=["treatment"],ascending=False)
+field_stats = {}
+times=np.arange(0,50,2.5)
+
+#stats
+for a in pd.unique(field_data['treatment']):
+    for b in pd.unique(field_data['treatment']):
+        if a!=b:
+
+            field_stats[a+"vs"+b]={"pvalue":[],"test":[]}
+            for time in times:
+                sa=field_data['normalized peak amp'][(field_data['series time']==time) & (field_data['treatment']==a)]
+                sb=field_data['normalized peak amp'][(field_data['series time']==time) & (field_data['treatment']==b)]
+                if stats.shapiro(sa,nan_policy='omit').pvalue>0.01 and stats.shapiro(sb,nan_policy='omit').pvalue>0.01:
+                    if stats.levene(sa,sb,axis=0,nan_policy='omit').pvalue>0.01:
+                        field_stats[a+"vs"+b]['pvalue'].append(stats.ttest_ind(sa,sb,equal_var=True,nan_policy='omit').pvalue)
+                        field_stats[a+"vs"+b]['test'].append("ttest_equal_var")
+                    else:
+                        field_stats[a+"vs"+b]['pvalue'].append(stats.ttest_ind(sa,sb,equal_var=False,nan_policy='omit').pvalue)
+                        field_stats[a+"vs"+b]['test'].append("ttest_unequal_var")
+                else:
+                    field_stats[a+"vs"+b]['pvalue'].append(stats.mannwhitneyu(sa, sb, nan_policy='omit').pvalue)
+                    field_stats[a+"vs"+b]['test'].append("mwu")
+
+
+field_stats_df = pd.DataFrame(field_stats).T.iloc[[0,1,3]]
+
+corrected_pvalues = stats.false_discovery_control(list(field_stats_df["pvalue"]),axis=None)
+corrected_pvalues_list=[list(corrected_pvalues[0:20]),list(corrected_pvalues[20:40]),list(corrected_pvalues[40:60])]
+field_stats_df["corrected pvalues"]=corrected_pvalues_list
+reconfig={}
+for treatment in field_stats_df.index:
+    for i in field_stats_df.columns:
+        reconfig[treatment,i]=field_stats_df.loc[treatment,i]
+field_stats_df_reconfig=pd.DataFrame(reconfig).T
+field_stats_df_reconfig.to_csv("E:/glia projects/field recordings/field_potential_stats.csv")
+
+#peak amplitude
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
 sns.set_palette(palette)
 
-ax = sns.pointplot(x = "series time", y = "Normalized amp", hue = "treatment", data=NBQX_APV, errorbar='se', capsize=0.2, ax=ax)
-#ax.set_ylim(top=max(NBQX_APV["Normalized amp"])*1.2, bottom=min(NBQX_APV["Normalized amp"])-min(NBQX_APV["Normalized amp"])*1.2)
-ax.set_title("Field recordings")
-sns.stripplot(x = "series time", y = "Normalized amp", data = NBQX_APV, size=5, hue="treatment", dodge=False, legend=False, ax=ax)
+field_peak_amp = sns.pointplot(data=field_data, x = "series time", y = "normalized peak amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+#field_peak_amp.set_ylim(top=2, bottom=0)
+field_peak_amp.set_title("LFP normalized peak amplitude")
+field_peak_amp.set_ylabel("Normalized amplitude (F/F0)")
+field_peak_amp.set_xlabel("Time (min)")
+sns.stripplot(data = field_data, x = "series time", y = "normalized peak amp", size=5, hue="treatment", dodge=False, legend=False, ax=field_peak_amp, alpha=0.4)
 
-plt.show()
+#absolute amplitude
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
+sns.set_palette(palette)
+
+field_abs_amp = sns.pointplot(data=field_data, x = "series time", y = "normalized absolute amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+#field_peak_amp.set_ylim(top=2, bottom=0)
+field_abs_amp.set_title("LFP normalized absolute amplitude")
+field_abs_amp.set_ylabel("Normalized amplitude (F/F0)")
+field_abs_amp.set_xlabel("Time (min)")
+sns.stripplot(data = field_data, x = "series time", y = "normalized absolute amp", size=5, hue="treatment", dodge=False, legend=False, ax=field_abs_amp, alpha=0.4)
+
+#before and after barchart for absolute amp
+pre_lfp_abs_amp = field_data[(field_data["series time"]==0)|(field_data["series time"]==2.5)][["normalized absolute amp","treatment"]]
+pre_lfp_abs_amp["time"]="t0"
+post_lfp_abs_amp = field_data[(field_data["series time"]==45.0)|(field_data["series time"]==47.5)][["normalized absolute amp","treatment"]]
+post_lfp_abs_amp["time"]="t50"
+
+pre_post_lfp_abs_amp = pd.concat([pre_lfp_abs_amp,post_lfp_abs_amp]).sort_values(by=['treatment'],ascending=False)
+
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (10,10), layout="constrained",)
+sns.set_palette(palette)
+
+field_abs_amp = sns.barplot(data=pre_post_lfp_abs_amp, x = "time", y = "normalized absolute amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+#field_peak_amp.set_ylim(top=2, bottom=0)
+field_abs_amp.set_title("LFP normalized absolute amplitude")
+field_abs_amp.set_ylabel("Normalized amplitude (F/F0)")
+field_abs_amp.set_xlabel("Time (min)")
+sns.stripplot(data = pre_post_lfp_abs_amp, x = "time", y = "normalized absolute amp", size=5, hue="treatment", dodge=True, linewidth=1, edgecolor="white",legend=False, ax=field_abs_amp)
+
+
+#fiber volley
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
+sns.set_palette(palette)
+
+fv_amp = sns.pointplot(data=field_data, x = "series time", y = "normalized fv amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+#fv_amp.set_ylim(top=2, bottom=0)
+fv_amp.set_title("LFP normalized fiber volley amplitude")
+fv_amp.set_ylabel("Normalized amplitude (F/F0)")
+fv_amp.set_xlabel("Time (min)")
+sns.stripplot(data = field_data, x = "series time", y = "normalized fv amp", size=5, hue="treatment", dodge=False, legend=False, ax=fv_amp, alpha=0.4)
+
+
+
 
 
 
