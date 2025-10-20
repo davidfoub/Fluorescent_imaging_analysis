@@ -8,7 +8,7 @@ Created on Fri May 23 15:38:26 2025
 from skimage.io import imread
 from skimage.restoration import denoise_nl_means, estimate_sigma
 from skimage.filters import median, threshold_triangle
-from skimage.morphology import octagon, binary_erosion,binary_dilation
+from skimage.morphology import octagon, binary_erosion, binary_dilation
 from os import listdir
 import numpy as np
 import pandas as pd
@@ -43,31 +43,53 @@ for idx in range(0,len(files),2):
     mf_red = median(n_red)
     mf_green = median(n_green)
     
-    sigma_red = np.array(estimate_sigma(mf_red,channel_axis=0))
+    sigma_red = np.array(estimate_sigma(n_red,channel_axis=0))
     sigma_green = np.array(estimate_sigma(n_green,channel_axis=0))
     dn_red=np.copy(mf_red)
     dn_green=np.copy(mf_green)
     
     for i in range(len(sigma_red)):    
-        dn_red[i]= denoise_nl_means(dn_red[i,:,:], h=0.8 * sigma_red[i], sigma=sigma_red[i], fast_mode=False, **patch_kw)
-        dn_green[i]=denoise_nl_means(dn_green[i], h=0.8 * sigma_green[i], sigma=sigma_green[i], fast_mode=False, **patch_kw)
+        dn_red[i]= denoise_nl_means(dn_red[i,:,:], h=1.2 * sigma_red[i], sigma=sigma_red[i], fast_mode=True, **patch_kw)
+        dn_green[i]=denoise_nl_means(dn_green[i], h=1.2 * sigma_green[i], sigma=sigma_green[i], fast_mode=True, **patch_kw)
     
-    gminusr = dn_green-dn_red
-    gminusr[gminusr<0]=0
-    
-    mask_red=np.zeros_like(dn_red)
-    mask_green = np.zeros_like(gminusr)
-    
-    for i in range(slices):
-        mask_red[i][dn_red[i]>threshold_triangle(dn_red[i],nbins=256)]=1
-        mask_green[i][gminusr[i]>threshold_triangle(gminusr[i],nbins=256)]=1
+    if "negative" not in files[idx]:
+        gminusr = dn_green-dn_red
         
-        mask_red = binary_erosion(mask_red, mode='min')
-        mask_red = binary_dilation(mask_red,footprint=octagon,mode='min')
-        mask_red = binary_erosion(mask_red,footprint=octagon,mode='min')
+        #gminusr[gminusr<0]=0
+        gminusr[gminusr==np.nan]=0
+        dn_red[dn_red==np.nan]=0
+        
+        mask_red=np.zeros_like(dn_red)
+        mask_green = np.zeros_like(gminusr)
+        
+        for i in range(slices):
+            mask_red[i][dn_red[i]>threshold_triangle(dn_red[i],nbins=256)]=1
+            mask_green[i][gminusr[i]>threshold_triangle(gminusr[i],nbins=256)]=1
+            
+            mask_red[i] = binary_erosion(mask_red[i],footprint=None, mode='min')
+            mask_red[i] = binary_dilation(mask_red[i],footprint=octagon,mode='min')
+            #mask_red[i] = binary_erosion(mask_red[i],footprint=octagon,mode='min')
+            
+    else:
+        dn_red[dn_red==np.nan]=0
+        mask_red=np.zeros_like(dn_red)
 
+        for i in range(slices):
+            mask_red[i][dn_red[i]>threshold_triangle(dn_red[i],nbins=256)]=1            
+            mask_red[i] = binary_erosion(mask_red[i],footprint=None, mode='min')
+            mask_red[i] = binary_dilation(mask_red[i],footprint=octagon,mode='min')
+            #mask_red[i] = binary_erosion(mask_red[i],footprint=octagon,mode='min')
+            
+        gminusr = dn_green-dn_red*mask_red
+        #gminusr[gminusr<0]=0
+        gminusr[gminusr==np.nan]=0
+        
+        mask_green = np.zeros_like(gminusr)
+        for i in range(slices):     
+            mask_green[i][gminusr[i]>threshold_triangle(gminusr[i],nbins=256)]=1
+            
 #calculate the green over red overlaping area percentage
-    percent_green = np.mean(np.sum(np.matmul(mask_green,mask_red),axis=(1,2))/np.sum(mask_red,axis=(1,2)))
+    percent_green = np.mean(np.sum(mask_green*mask_red,axis=(1,2))/np.sum(mask_red,axis=(1,2)))
 
     data["animal"].append(files[idx])
     data["percent green"].append(percent_green)
@@ -89,8 +111,11 @@ for idx in range(0,len(files),2):
         cldu_axes[2,i].set_title("Green with red subtracted slice " + str(exs[i]))
         
         cldu_axes[3,i].imshow(mask_green[exs[i]],cmap="gray",vmin=0,vmax=1,interpolation=None)
-        cldu_axes[3,i].set_title("Li thresholded slice " + str(exs[i]))
-            
+        cldu_axes[3,i].set_title("Thresholded slice " + str(exs[i]))
+    plt.savefig("E:/transfection/staining/figures/cldu_processing_"+files[idx])
+    
+    plt.close()
+    
     tub_fig, tub_axes = plt.subplots(3,3,figsize=(30,30),layout="tight")
     tub_fig.suptitle("Tubulin processing")
     for i in range(3):
@@ -101,12 +126,11 @@ for idx in range(0,len(files),2):
         tub_axes[1,i].set_title("Median filtered & Normed slice " + str(exs[i]))
         
         tub_axes[2,i].imshow(mask_red[exs[i]],cmap="gray",vmin=0,vmax=1,interpolation=None)
-        tub_axes[2,i].set_title("Li thresholded slice " + str(exs[i]))
+        tub_axes[2,i].set_title("Thresholded slice " + str(exs[i]))
     
-    plt.savefig("E:/transfection/staining/figures/cldu_processing_"+files[idx])
     plt.savefig("E:/transfection/staining/figures/tubulin_processing_"+files[idx])
     
-    
+    plt.close()
     
 out_path="E:/transfection/staining//"
 df = pd.DataFrame(data)
