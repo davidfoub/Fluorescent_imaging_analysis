@@ -218,7 +218,7 @@ neuropil_raw_amp_exp.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "Normalized au peaks", data = neuropil_raw_anml_exp, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_raw_amp_exp, alpha=1)
 
 
-#CELL LOCATION MATCHING
+#CELL LOCATION MATCHING ------------------------------------------------------------------------------------------
 fig,ax =plt.subplots(figsize = (25,25), layout="constrained")
 ax = sns.heatmap(fltrd_dst_matrix, vmin=np.min(fltrd_dst_matrix), vmax=np.min(fltrd_dst_matrix)*100 ,center=np.min(fltrd_dst_matrix)*10, cbar=False)
 ax.set_ylabel("cell id in current time point")
@@ -229,9 +229,11 @@ ax.set_title("Matching cells")
 #FIGURES FOR LOCAL FIELD POTENTIALS
 
 field_data = pd.read_csv('E:/glia projects/field recordings/field_potential_data.csv')
-field_data=field_data[(field_data["series time"]>=0)&(field_data["series time"]<=47.5)]
+field_data=field_data[(field_data["series time"]>=0)&(field_data["series time"]<=47.5)].sort_values(by=["treatment"],ascending=False)
 field_stats = {}
 times=np.arange(0,50,2.5)
+
+#stats
 for a in pd.unique(field_data['treatment']):
     for b in pd.unique(field_data['treatment']):
         if a!=b:
@@ -285,6 +287,25 @@ field_abs_amp.set_title("LFP normalized absolute amplitude")
 field_abs_amp.set_ylabel("Normalized amplitude (F/F0)")
 field_abs_amp.set_xlabel("Time (min)")
 sns.stripplot(data = field_data, x = "series time", y = "normalized absolute amp", size=5, hue="treatment", dodge=False, legend=False, ax=field_abs_amp, alpha=0.4)
+
+#before and after barchart for absolute amp
+pre_lfp_abs_amp = field_data[(field_data["series time"]==0)|(field_data["series time"]==2.5)][["normalized absolute amp","treatment"]]
+pre_lfp_abs_amp["time"]="t0"
+post_lfp_abs_amp = field_data[(field_data["series time"]==45.0)|(field_data["series time"]==47.5)][["normalized absolute amp","treatment"]]
+post_lfp_abs_amp["time"]="t50"
+
+pre_post_lfp_abs_amp = pd.concat([pre_lfp_abs_amp,post_lfp_abs_amp]).sort_values(by=['treatment'],ascending=False)
+
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (10,10), layout="constrained",)
+sns.set_palette(palette)
+
+field_abs_amp = sns.barplot(data=pre_post_lfp_abs_amp, x = "time", y = "normalized absolute amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+#field_peak_amp.set_ylim(top=2, bottom=0)
+field_abs_amp.set_title("LFP normalized absolute amplitude")
+field_abs_amp.set_ylabel("Normalized amplitude (F/F0)")
+field_abs_amp.set_xlabel("Time (min)")
+sns.stripplot(data = pre_post_lfp_abs_amp, x = "time", y = "normalized absolute amp", size=5, hue="treatment", dodge=True, linewidth=1, edgecolor="white",legend=False, ax=field_abs_amp)
+
 
 #fiber volley
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
