@@ -19,7 +19,8 @@ try:
     from copy import deepcopy
     import scipy.ndimage as sn
     import math
-    
+    from pywt import dwtn
+    from scipy.stats import norm
 except ImportError as e:
     package = re.search("\'.+\'", str(e)).group()[1:-1]
     print(package + " not installed")
@@ -30,7 +31,7 @@ def is_cell_responsive(file, recording_name, output_dir):
     
     #Set folder path and then use it to open the iscell with shape: two columns, first contains 0 or 1 depending on if ROI is a cell and second the probability of that ROI of being a cell according to the suite2p classifier. 
     #And to open F.npy containing an array of fluorescent trace arrays
-    is_cell = np.load(file + 'glia_iscell.npy', allow_pickle=True)
+    is_cell = np.load(file + 'iscell.npy', allow_pickle=True)
     F = np.load(file + 'F.npy',allow_pickle=True)
 
     #create array of traces containing only the ROIs that are cells according to iscell 
@@ -42,9 +43,9 @@ def is_cell_responsive(file, recording_name, output_dir):
     return F_fltrd
 
 
-def calculate_baselines(data, percentile=7.5):
+def calculate_baselines(data,fr,  percentile=7.5):
 
-    window_size = 150
+    window_size = 10*fr
     baselines = [[] for i in range(len(data[0:]))]
 
     for cell, frames in enumerate(data): # One cell at a time
@@ -87,7 +88,7 @@ def deltaF(data, baselines):
 
     return  deltaf
     
-def blur(data: list, sigma: int) -> list:
+def blur(data: list) -> list:
     """
     Returns a blurred trace from 'data'.
 
@@ -104,16 +105,21 @@ def blur(data: list, sigma: int) -> list:
     F_blur:
         The blurred fluorenscence traces
    """
-   
     nd_data = np.array(data)
+    
+    for idx, trace in enumerate(data):
+        coeffs=dwtn(np.array(trace),'db2')
+        d=coeffs['d']
+        # 75th quantile of the underlying, symmetric noise distribution
+        denom = norm.ppf(0.75)
+        sigma = np.median(np.abs(d)) / denom
+        nd_data[idx]=sn.gaussian_filter1d(trace, sigma=sigma)
 
-    #create array that has m = cell rows and n = time/2 columns.
-    F_blur = sn.gaussian_filter1d(nd_data, sigma=sigma)
-        
-    return F_blur.tolist()
+          
+    return nd_data.tolist()
 
 
-def find_peaks_in_data(data, blurred, recording_name, threshold_multiplier):
+def find_peaks_in_data(data, blurred, recording_name, threshold_multiplier, fr):
 
     peaks = [[] for i in range(len(data))]
     times = [[] for i in range(len(data))]
@@ -142,7 +148,7 @@ def find_peaks_in_data(data, blurred, recording_name, threshold_multiplier):
     
             else: # We have a start and an end - find the max in this range
                 
-                if len(data[row_index][start_of_window:end_of_window]) > 15:
+                if len(data[row_index][start_of_window:end_of_window]) > fr:
     
                     peaks[row_index].append(max(data[row_index][start_of_window:end_of_window]))
                 
@@ -150,19 +156,19 @@ def find_peaks_in_data(data, blurred, recording_name, threshold_multiplier):
                 
                     times[row_index].append(data[row_index].index(max(data[row_index][start_of_window:end_of_window])) + 1)
                     
-                    if start_of_window-15<=0:
-                        responses[row_index].append(data[row_index][0 : end_of_window+15 + (15-start_of_window) ])
+                    if start_of_window-fr<=0:
+                        responses[row_index].append(data[row_index][0 : end_of_window+fr + (fr-start_of_window) ])
                         
-                    elif end_of_window+15>=(len(data[row_index])-1):
-                        responses[row_index].append(data[row_index][start_of_window-15 - (15-len(data[row_index])-end_of_window):len(data[row_index])])
+                    elif end_of_window+fr>=(len(data[row_index])-1):
+                        responses[row_index].append(data[row_index][start_of_window-fr - (fr-len(data[row_index])-end_of_window):len(data[row_index])])
                         
                     else:
-                        responses[row_index].append(data[row_index][start_of_window-15:end_of_window+15])
+                        responses[row_index].append(data[row_index][start_of_window-fr:end_of_window+fr])
                 
                     try:
-                        thresholds[row_index].append(max(data[row_index][start_of_window-30:start_of_window-15]))
+                        thresholds[row_index].append(max(data[row_index][start_of_window-fr*2:start_of_window-fr]))
                     except:
-                        thresholds[row_index].append(max(data[row_index][end_of_window+15:end_of_window+30]))
+                        thresholds[row_index].append(max(data[row_index][end_of_window+fr:end_of_window+fr*2]))
 
                 start_of_window = -1
                 end_of_window = -1 
@@ -383,20 +389,21 @@ def make_plots(grouped_by_treatment):#Function for ploting aligned and averaged 
     
 def process_from_raw_traces(input_dir, output_dir):
     
-    files =[f.path[:f.path.rfind('\\')+1] for i in glob.glob(f'{input_dir}/*/**/***/',recursive=True) for f in os.scandir(i) if f.path.endswith('glia_iscell.npy') and "capapplication" not in f.path]
+    files =[f.path[:f.path.rfind('\\')+1] for i in glob.glob(f'{input_dir}/*/**/***/',recursive=True) for f in os.scandir(i) if "spont" in f.path and "S1" not in f.path and "S6" not in f.path and f.path.endswith("iscell.npy")]
     
     resp_db = {}
     thresh_db = {}
     
     for file in files:
         #find the name of the recording that starts with an A and a number followed by _min and ends with a date in the format of ddmmmyy with dd and yy as ints and mmm as string
-        recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group()
-
+        #recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group() #for plasticity data
+        recording_name = re.search("A\d{1}_S\d{1}.+\d{2}\D{3}\d{2}", file).group() #for BAPTA data
+        
         #perform deltaF operation
         #try:
         print("Normalizing " + file)
         raw_trace = is_cell_responsive(file, recording_name, output_dir)
-        baselines = calculate_baselines(raw_trace)
+        baselines = calculate_baselines(raw_trace,fr=6)
         deltaf = deltaF(raw_trace, baselines)
         #except Exception:
          #   print(file + " contains no traces, so it was skipped!")
@@ -405,13 +412,13 @@ def process_from_raw_traces(input_dir, output_dir):
         #perform response metric operations 
         try:
             print("Extracting response metrics of " + file)
-            blurred = blur(deltaf, sigma = 5)
+            blurred = blur(deltaf)
             
-            area, peaks, times, thresholds, responses = find_peaks_in_data(deltaf, blurred, recording_name, threshold_multiplier = 2)
+            area, peaks, times, thresholds, responses = find_peaks_in_data(deltaf, blurred, recording_name, threshold_multiplier = 2, fr=6)
             
             #Agregate the responses and the thresholds then filter them and group them by experimental condition
-            resp_db[recording_name] = responses
-            thresh_db[recording_name] = thresholds
+            #resp_db[recording_name] = responses
+            #thresh_db[recording_name] = thresholds
            
             #Save the data to files
             output_csv(baselines, deltaf, area, peaks, times, thresholds, responses, output_dir, recording_name)
@@ -436,7 +443,9 @@ def process_from_responses(input_dir, output_dir):
     
     for file in response_files:
         #find the name of the recording that starts with an A and ends with a date in the format of ddmmmyy with dd and yy as ints and mmm as string
-        recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group()
+        recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group() #for plasticity data
+        recording_name = re.search("A\d{1}_S\d{1}.+\d{2}\D{3}\d{2}", file).group() #for BAPTA data
+        
         responses = np.load(file, allow_pickle=True)
         thresholds = np.array(pd.read_csv(file[:file.rfind('_')] + '_THRESHOLD.csv', header=None).iloc[:, 1:])
         
@@ -451,8 +460,8 @@ def process_from_responses(input_dir, output_dir):
 
 #process_from_responses(input_dir = 'C:\\Users\\Biocraze\\Documents\\Ruthazer lab\\glia_training\\analysis\\new glia activity\\data-peaks\\',
 #                       output_dir = "C:\\Users\\Biocraze\\Documents\\Ruthazer lab\\glia_training\\analysis\\new glia activity\\")
-process_from_raw_traces(input_dir = 'E:/glia projects/plasticity/data/', 
-                        output_dir = "E:/glia projects/plasticity/analysis/new glia activity/")
+process_from_raw_traces(input_dir = "E:\\BAPTA NE\\",
+                        output_dir = "E:\\BAPTA NE\\")
 
 
 
