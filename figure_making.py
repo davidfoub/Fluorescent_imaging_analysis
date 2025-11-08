@@ -201,7 +201,7 @@ neuropil_data_raw_by_anml = neuropil_data_raw[["animal","Normalized au peaks","t
 
     #without training
         #delta f
-neuropil_norm_anml_ctrl = neuropil_data_norm_by_anml[neuropil_data_norm_by_anml['treatment'].str.contains('without training')]
+neuropil_norm_anml_ctrl = neuropil_data_norm_by_anml[neuropil_data_norm_by_anml['treatment'].str.contains('without training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
 neuropil_norm_auc_ctrl= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=neuropil_norm_anml_ctrl, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
@@ -211,7 +211,7 @@ neuropil_norm_auc_ctrl.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected area", data = neuropil_norm_anml_ctrl, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_norm_auc_ctrl, alpha=1)
         
         #raw
-neuropil_raw_anml_ctrl = neuropil_data_raw_by_anml[neuropil_data_raw_by_anml['treatment'].str.contains('without training')]
+neuropil_raw_anml_ctrl = neuropil_data_raw_by_anml[neuropil_data_raw_by_anml['treatment'].str.contains('without training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
 neuropil_raw_amp_ctrl= sns.pointplot(x = "time group", y = "Normalized au peaks", hue = "treatment", data=neuropil_raw_anml_ctrl, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
@@ -222,7 +222,7 @@ sns.stripplot(x = "time group", y = "Normalized au peaks", data = neuropil_raw_a
 
     #with training
         #delta f
-neuropil_norm_anml_training = neuropil_data_norm_by_anml[neuropil_data_norm_by_anml['treatment'].str.contains('with training')]
+neuropil_norm_anml_training = neuropil_data_norm_by_anml[neuropil_data_norm_by_anml['treatment'].str.contains('with training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
 neuropil_response_auc_exp= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=neuropil_norm_anml_training, errorbar='se', capsize=0.1, ax=axes)
@@ -232,7 +232,7 @@ neuropil_response_auc_exp.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected area", data = neuropil_norm_anml_training, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_response_auc_exp, alpha=1)
         
         #raw
-neuropil_raw_anml_exp = neuropil_data_raw_by_anml[neuropil_data_raw_by_anml['treatment'].str.contains('with training')]
+neuropil_raw_anml_exp = neuropil_data_raw_by_anml[neuropil_data_raw_by_anml['treatment'].str.contains('with training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
 neuropil_raw_amp_exp= sns.pointplot(x = "time group", y = "Normalized au peaks", hue = "treatment", data=neuropil_raw_anml_exp, errorbar='se', capsize=0.1, ax=axes)
