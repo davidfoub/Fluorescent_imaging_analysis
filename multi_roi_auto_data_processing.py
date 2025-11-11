@@ -21,6 +21,7 @@ try:
     import math
     from pywt import dwtn
     from scipy.stats import norm
+    from scipy.signal import find_peaks
 except ImportError as e:
     package = re.search("\'.+\'", str(e)).group()[1:-1]
     print(package + " not installed")
@@ -36,59 +37,26 @@ def is_cell_responsive(file, recording_name, output_dir):
 
     #create array of traces containing only the ROIs that are cells according to iscell 
     F_fltrd = np.array([F[i] for i in range(len(is_cell)) if is_cell[i][0] == True])
-
+    
+    iscell_ids=[i for i in range(len(is_cell)) if is_cell[i][0] == True]
     #write data to csv files
     np.savetxt(output_dir + recording_name +'_glia_traces.csv', F_fltrd, delimiter=", ", fmt="% 1.4f")
     
-    return F_fltrd
+    return iscell_ids, F_fltrd
 
-
-def calculate_baselines(data,fr,  percentile=7.5):
-
-    window_size = 10*fr
-    baselines = [[] for i in range(len(data[0:]))]
-
-    for cell, frames in enumerate(data): # One cell at a time
-    
-        for frame, value in enumerate(frames): # One frame at a time
-
-            # Get the index for window/2 before and after frame
-            before = frame - (window_size / 2) if (frame > window_size / 2) else 0
-            after = frame + (window_size / 2) if (frame + (window_size / 2)) < (len(frames) - 1) else len(frames) - 1
-
-            #create the sliding window from the values of column with before and after indexes
-            window = frames[int(before):int(after)]
-            
-            #Band filter the window to pull the 10th(exclusive) to 5th percentile(exclusive) values
-            #btm_prcntl = list(filter(lambda a: a < np.percentile(window,percentile),window))
-            #baseline_band = list(filter(lambda a: a > np.median(btm_prcntl),btm_prcntl))
-            
-            baselines[cell].append(np.percentile(window, percentile))
-
-    return baselines
-
-def deltaF(data, baselines):
+def deltaF(data, percentile):
 
     deltaf = []
-    count=0
-    
+    baselines=[]
     for cell, frames in enumerate(data):
+        baseline=np.percentile(frames,percentile)
+        baselines.append(baseline)
+        deltaf.append((frames - baseline) / float(baseline))
         
-        count+=1
-        new_trace = []
-        
-        for frame, value in enumerate(frames):
-            try:
-                new_trace.append((float(value) - baselines[cell][frame]) / float(baselines[cell][frame]))
-    
-            except IndexError:
-                new_trace.append((float(value) - baselines[cell][frame-1]) / float(baselines[cell][frame-1]))
-            
-        deltaf.append(new_trace)
 
-    return  deltaf
+    return  deltaf, baselines
     
-def blur(data: list) -> list:
+def blur(raw, deltaf):
     """
     Returns a blurred trace from 'data'.
 
@@ -105,78 +73,52 @@ def blur(data: list) -> list:
     F_blur:
         The blurred fluorenscence traces
    """
-    nd_data = np.array(data)
-    
-    for idx, trace in enumerate(data):
+    nd_data = np.array(deltaf)
+    # 95th quantile of the underlying, symmetric noise distribution
+    denom = norm.ppf(0.95)
+    for idx, trace in enumerate(raw):
         coeffs=dwtn(np.array(trace),'db2')
         d=coeffs['d']
-        # 75th quantile of the underlying, symmetric noise distribution
-        denom = norm.ppf(0.75)
         sigma = np.median(np.abs(d)) / denom
-        nd_data[idx]=sn.gaussian_filter1d(trace, sigma=sigma)
+        nd_data[idx]=sn.gaussian_filter1d(deltaf[idx], sigma=sigma)
 
-          
+
     return nd_data.tolist()
 
 
 def find_peaks_in_data(data, blurred, recording_name, threshold_multiplier, fr):
 
-    peaks = [[] for i in range(len(data))]
-    times = [[] for i in range(len(data))]
+    peaks = []
+    times = []
     area = [[] for i in range(len(data))]
     responses = [[] for i in range(len(data))]
-    thresholds = [[] for i in range(len(data))]
-    start_of_window = -1
-    end_of_window = -1
     
     ''' scan over gaussian blurred data to find response windows then pull responses from raw data'''
     for row_index, row in enumerate(blurred):
-    
-        threshold_to_start = (threshold_multiplier * statistics.stdev(row)) + statistics.mean(row)
-        threshold_to_end = (threshold_multiplier * statistics.stdev(row)) + statistics.mean(row)
-
-        for value_index, value in enumerate(row):
-            if start_of_window == -1: # If we don't have a starting point yet
-                if value >= threshold_to_start:  
-                    start_of_window = value_index
-                    #start_of_window_d = row.index(min(row[value_index - search_extension:value_index])) if value_index > search_extension else row.index(min(row[:value_index+1]))
-    
-            elif end_of_window == -1: # We have a starting point, now we're looking for the end of our window
-                if value <= threshold_to_end:
-                    end_of_window = value_index
-                    #end_of_window_d = row.index(min(row[value_index:value_index + search_extension])) if value_index < len(row) - search_extension else row.index(min(row[value_index-1:]))
-    
-            else: # We have a start and an end - find the max in this range
+        peaks_found = find_peaks(row,height=1,width=6)
+        peaks.append(list(peaks_found[1]['peak_heights']))
+        times.append(list(peaks_found[0]))
+        
+        for idx, peak in enumerate(peaks_found[0]):
+                start_of_window=round(peaks_found[1]['left_ips'][idx])
+                end_of_window=round(peaks_found[1]['right_ips'][idx])
                 
-                if len(data[row_index][start_of_window:end_of_window]) > fr:
-    
-                    peaks[row_index].append(max(data[row_index][start_of_window:end_of_window]))
-                
-                    area[row_index].append(auc(list(range(start_of_window, end_of_window)), list(data[row_index][start_of_window:end_of_window])))
-                
-                    times[row_index].append(data[row_index].index(max(data[row_index][start_of_window:end_of_window])) + 1)
+                area[row_index].append(auc(list(range(start_of_window, end_of_window)), list(data[row_index][start_of_window:end_of_window])))
+                            
+                if start_of_window-fr<=0:
+                    responses[row_index].append(data[row_index][0 : end_of_window+fr + (fr-start_of_window) ])
                     
-                    if start_of_window-fr<=0:
-                        responses[row_index].append(data[row_index][0 : end_of_window+fr + (fr-start_of_window) ])
-                        
-                    elif end_of_window+fr>=(len(data[row_index])-1):
-                        responses[row_index].append(data[row_index][start_of_window-fr - (fr-len(data[row_index])-end_of_window):len(data[row_index])])
-                        
-                    else:
-                        responses[row_index].append(data[row_index][start_of_window-fr:end_of_window+fr])
-                
-                    try:
-                        thresholds[row_index].append(max(data[row_index][start_of_window-fr*2:start_of_window-fr]))
-                    except:
-                        thresholds[row_index].append(max(data[row_index][end_of_window+fr:end_of_window+fr*2]))
+                elif end_of_window+fr>=(len(data[row_index])-1):
+                    responses[row_index].append(data[row_index][start_of_window-fr - (fr-len(data[row_index])-end_of_window):len(data[row_index])])
+                    
+                else:
+                    responses[row_index].append(data[row_index][start_of_window-fr:end_of_window+fr])
+            
 
-                start_of_window = -1
-                end_of_window = -1 
-
-    return area, peaks, times, thresholds, responses
+    return area, peaks, times, responses
 
     
-def output_csv(baselines, deltaf, area, peaks, times, thresholds, responses, output_dir, recording_name):
+def output_csv(iscell_ids, baselines, deltaf, area, peaks, times, responses, output_dir, recording_name):
       
     print("writing")
     if not os.path.exists(output_dir + 'deltaF/'):
@@ -190,24 +132,21 @@ def output_csv(baselines, deltaf, area, peaks, times, thresholds, responses, out
     with open(output_dir + 'deltaF/' + recording_name + '_Fo.csv', 'w', newline='') as fn:
         writer = csv.writer(fn)
         for row in baselines:
-            writer.writerows([row])
+            writer.writerow([row])
         
-    if len(area) > 0:
+    if len(area) >= 0:
         area_c = deepcopy(area)
         for index, row in enumerate(area_c):
-            row.insert(0, f"trace_{index+1}")
+            row.insert(0, f"trace_{iscell_ids[index]}")
         
         peaks_c = deepcopy(peaks)
         for index, row in enumerate(peaks_c):
-            row.insert(0, f"trace_{index+1}")
+            row.insert(0, f"trace_{iscell_ids[index]}")
             
         times_c = deepcopy(times) 
         for index, row in enumerate(times_c):
-            row.insert(0, f"trace_{index+1}")
+            row.insert(0, f"trace_{iscell_ids[index]}")
             
-        thresholds_c = deepcopy(thresholds)
-        for index, row in enumerate(thresholds_c):
-            row.insert(0, f"trace_{index+1}")
             
         if not os.path.exists(output_dir + 'data-peaks/'):
             os.makedirs(output_dir + 'data-peaks/')
@@ -225,11 +164,6 @@ def output_csv(baselines, deltaf, area, peaks, times, thresholds, responses, out
         with open(output_dir + 'data-peaks/' + recording_name + '_TIMES.csv', 'w', newline='') as fn:
             writer = csv.writer(fn)
             for row in times_c:
-                writer.writerows([row])
-                
-        with open(output_dir + 'data-peaks/' + recording_name + '_THRESHOLD.csv', 'w', newline='') as fn:
-            writer = csv.writer(fn)
-            for row in thresholds_c:
                 writer.writerows([row])
                 
         with open(output_dir + 'data-peaks/' + recording_name + '_RESPONSES.npy', 'wb') as fn:
@@ -293,39 +227,9 @@ def pad(to_pad):
     return to_pad
     
 
-def thresh_filter_responses(resp, thresh): #response arrays should have a shape of cells*stims*time
-    #remove cell responses where the max is less than the threshold        
-    for recording, cells in resp.items():
-        resp[recording]= [cell for cell in cells if cell]
-    for rec_thresh, cells_thresh in thresh.items():
-        thresh[rec_thresh]=[cell_thresholds for cell_thresholds in cells_thresh if cell_thresholds]
-    
-    for recording, cells in resp.items():
-        for cell, responses in enumerate(cells): 
-            resp[recording][cell] = [trace for trace in responses if trace]
-    for rec_thresh, cells_thresh in thresh.items():
-        for cell_thresh, resp_thresh in enumerate(cells_thresh):
-            thresh[rec_thresh][cell_thresh] = [threshold for threshold in resp_thresh if threshold]
-                
-    for recording, cells in resp.items():
-        for cell, responses in enumerate(cells):
-            for response, trace in enumerate(responses):
-                if max(trace, default = 0) < thresh[recording][cell][response]:
-                    resp[recording][cell][response] = np.array(resp[recording][cell][response])
-                    resp[recording][cell][response] *= np.nan
-                    resp[recording][cell][response].tolist()
-                
-
-    fltrd_resp_db = pad(resp)
-    
-    return fltrd_resp_db
-
-
-def group_by_treatment(resp_db_to_group, thresh_db_to_group):
+def group_by_treatment(resp_db_to_group):
     treatments = {"cap_and_train": ["21sep22", "22jun22", "26may22", "13aug22"], "cap_notrain": ["01apr23", "02feb23", "30mar23"],
     "nocap_train": ["07sep22", "15jun22", "20jul22", "27apr22"], "nocap_notrain":["19may23", "23aug23"]}
-    
-    fltrd_resp_db = thresh_filter_responses(resp_db_to_group, thresh_db_to_group)
     
     grouped_by_treatment ={}
     
@@ -334,7 +238,7 @@ def group_by_treatment(resp_db_to_group, thresh_db_to_group):
         for experiment in experiments:
             kl=[]
             vl=[]
-            for exp, traces in fltrd_resp_db.items():
+            for exp, traces in resp_db_to_group.items():
                 if experiment in exp:
                     kl.append(exp)
                     vl.append(traces)
@@ -392,7 +296,6 @@ def process_from_raw_traces(input_dir, output_dir):
     files =[f.path[:f.path.rfind('\\')+1] for i in glob.glob(f'{input_dir}/*/**/***/',recursive=True) for f in os.scandir(i) if "spont" in f.path and "S1" not in f.path and "S6" not in f.path and f.path.endswith("iscell.npy")]
     
     resp_db = {}
-    thresh_db = {}
     
     for file in files:
         #find the name of the recording that starts with an A and a number followed by _min and ends with a date in the format of ddmmmyy with dd and yy as ints and mmm as string
@@ -402,9 +305,8 @@ def process_from_raw_traces(input_dir, output_dir):
         #perform deltaF operation
         #try:
         print("Normalizing " + file)
-        raw_trace = is_cell_responsive(file, recording_name, output_dir)
-        baselines = calculate_baselines(raw_trace,fr=6)
-        deltaf = deltaF(raw_trace, baselines)
+        iscell_ids, raw_trace = is_cell_responsive(file, recording_name, output_dir)
+        deltaf, baselines = deltaF(raw_trace, percentile=10)
         #except Exception:
          #   print(file + " contains no traces, so it was skipped!")
           #  pass
@@ -412,22 +314,22 @@ def process_from_raw_traces(input_dir, output_dir):
         #perform response metric operations 
         try:
             print("Extracting response metrics of " + file)
-            blurred = blur(deltaf)
+            blurred = blur(raw_trace,deltaf)
             
-            area, peaks, times, thresholds, responses = find_peaks_in_data(deltaf, blurred, recording_name, threshold_multiplier = 2, fr=6)
+            area, peaks, times, responses = find_peaks_in_data(deltaf, blurred, recording_name, threshold_multiplier = 2, fr=6)
             
             #Agregate the responses and the thresholds then filter them and group them by experimental condition
             #resp_db[recording_name] = responses
             #thresh_db[recording_name] = thresholds
            
             #Save the data to files
-            output_csv(baselines, deltaf, area, peaks, times, thresholds, responses, output_dir, recording_name)
+            output_csv(iscell_ids, baselines, deltaf, area, peaks, times, responses, output_dir, recording_name)
             
         except KeyError:
             print(file + " contains no responses, so it was skipped!")
             pass
         
-    grouped_by_treatment = group_by_treatment(resp_db, thresh_db)
+    grouped_by_treatment = group_by_treatment(resp_db)
         
     
     #Write the grouped data to a txt file for use at another time
@@ -439,20 +341,17 @@ def process_from_responses(input_dir, output_dir):
 
     response_files =[f.path  for f in os.scandir(input_dir) if f.path.endswith('RESPONSES.npy')]  
     resp_db = {}
-    thresh_db = {}
     
     for file in response_files:
         #find the name of the recording that starts with an A and ends with a date in the format of ddmmmyy with dd and yy as ints and mmm as string
         recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group() #for plasticity data
-        recording_name = re.search("A\d{1}_S\d{1}.+\d{2}\D{3}\d{2}", file).group() #for BAPTA data
+        #recording_name = re.search("A\d{1}_S\d{1}.+\d{2}\D{3}\d{2}", file).group() #for BAPTA data
         
         responses = np.load(file, allow_pickle=True)
-        thresholds = np.array(pd.read_csv(file[:file.rfind('_')] + '_THRESHOLD.csv', header=None).iloc[:, 1:])
         
         #Agregate the responses and the thresholds then filter them and group them by experimental condition
         resp_db[recording_name] = responses
-        thresh_db[recording_name] = thresholds
-        grouped_by_treatment = group_by_treatment(resp_db, thresh_db)
+        grouped_by_treatment = group_by_treatment(resp_db)
         
         #Write the grouped data to a txt file for use at another time
         with open(output_dir + 'grouped_glia_responses_by_treatment' + str(date.today()) + '.pkl', 'wb') as of:
@@ -460,8 +359,8 @@ def process_from_responses(input_dir, output_dir):
 
 #process_from_responses(input_dir = 'C:\\Users\\Biocraze\\Documents\\Ruthazer lab\\glia_training\\analysis\\new glia activity\\data-peaks\\',
 #                       output_dir = "C:\\Users\\Biocraze\\Documents\\Ruthazer lab\\glia_training\\analysis\\new glia activity\\")
-process_from_raw_traces(input_dir = "E:\\BAPTA NE\\",
-                        output_dir = "E:\\BAPTA NE\\")
+process_from_raw_traces(input_dir = "E:\\BAPTA NE\\BAPTA_spont\\data\\",
+                        output_dir = "E:\\BAPTA NE\\BAPTA_spont\\analysis\\")
 
 
 
