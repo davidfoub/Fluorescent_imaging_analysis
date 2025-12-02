@@ -15,8 +15,12 @@ from scipy import stats
 
 #Figures for non-viral transfection project
 
-#gcamp_summary = 
-#transfected_count = 
+gcamp_summary = pd.read_csv("C:/Users/BioCraze/Documents/Ruthazer lab/transfection troubleshoot/expression/analysis/GCAMP_summary.csv")
+transfected_count = pd.read_csv("C:/Users/BioCraze/Documents/Ruthazer lab/transfection troubleshoot/expression/analysis/transfected cell count.csv").sort_values(by=['Transfection technique'],ascending=True)
+cell_fluo = pd.read_csv("C:/Users/BioCraze/Documents/Ruthazer lab/transfection troubleshoot/expression/analysis/GCAMP_fluo_per_cell.csv").sort_values(by=['transfection_technique'],ascending=True)
+proliferation = pd.read_csv("C:/Users/BioCraze/Documents/Ruthazer lab/transfection troubleshoot/expression/analysis/proliferation_summary.csv").sort_values(by=['transfection_technique'],ascending=True)
+death = pd.read_csv("C:/Users/BioCraze/Documents/Ruthazer lab/transfection troubleshoot/expression/analysis/cell_death_summary.csv").sort_values(by=['transfection_technique'],ascending=True)
+mpl.rcParams["font.size"]=30
 
 fig,axes =plt.subplots(nrows=2, ncols=3, figsize = (25,10), layout="constrained")
 palette = ["#95beff","#00bac6"]
@@ -41,6 +45,39 @@ ax6=sns.barplot(x = "Transfection technique", y = "transfected cell count", data
 ax6.set_ylim(top=max(transfected_count["transfected cell count"])*1.2)
 sns.stripplot(x = "Transfection technique", y = "transfected cell count", data = transfected_count, color="k", size=5, legend=False, ax=ax6)
 plt.show()
+
+
+fig,axes =plt.subplots(nrows=2, ncols=2, figsize = (40,20), layout="constrained")
+palette = ["#95beff","#00bac6"]
+sns.set_palette(palette)
+
+ax1=sns.barplot(x = "Transfection technique", y = "transfected cell count", data=transfected_count, capsize=0.2, palette=["#baab00","#00a94c","#00888e"], ax=axes[0,0])
+ax1.set_xlabel("Transfection method")
+ax1.set_ylabel("Transfected cell count")
+ax1.set_ylim(top=max(transfected_count["transfected cell count"])*1.2)
+sns.stripplot(x = "Transfection technique", y = "transfected cell count", data = transfected_count, color="k", size=5, legend=False, ax=ax1)
+
+ax2 = sns.barplot(x = "transfection_technique", y = "percent red", data=death, capsize=0.2, palette=["#00a94c","#00888e"], ax=axes[0,1])
+ax2.set_xlabel("Transfection method")
+ax2.set_ylabel("Proportion of propidium iodide staining")
+ax2.set_ylim(top=1.0)
+sns.stripplot(x = "transfection_technique", y = "percent red", data = death, color="k", size=5, dodge=True, legend=False, ax=ax2)
+
+ax3=sns.barplot(x = "transfection_technique", y = "percent green", data=proliferation, capsize=0.2, palette=["#ffa556","#baab00","#00a94c","#0062c1"], ax=axes[1,0])
+ax3.set_xlabel("Transfection method")
+ax3.set_ylabel("Proliferative zone proportion")
+ax3.set_ylim(top=1.0)
+sns.stripplot(x = "transfection_technique", y = "percent green", data = proliferation, color="k", size=5, dodge=True, legend=False, ax=ax3)
+
+ax4=sns.barplot(x = "transfection_technique", y = "fluorescence per ROI", hue = "Trial", data=gcamp_summary, capsize=0.2, ax=axes[1,1])
+ax4.set_xlabel("Transfection method")
+ax4.set_ylabel("Fluorescence per ROI a.u.")
+ax4.set_ylim(top=max(gcamp_summary["fluorescence per ROI"])*1.2)
+ax4.set_xticks(ax4.get_xticks(), ax4.get_xticklabels(), rotation=10, ha='right')
+sns.stripplot(x = "transfection_technique", y = "fluorescence per ROI", data = gcamp_summary, color="k", size=5, hue="Trial", dodge=True, legend=False, ax=ax4)
+plt.show()
+
+
 #------------------------------------------------------------------------------------------
 colour='white'
 mpl.rcParams["text.color"]=colour
@@ -56,13 +93,13 @@ palette = ["#1be6ec", "#e51bec"]
 
 #Figures for glia plasticity
 #GLIA DATA
-responsive_glia_data= pd.read_csv("E:/glia projects/plasticity/summaries/responding_glia_count.csv").sort_values(by=['time group']).sort_values(by=['time group']).sort_values(by=['treatment'],ascending=False)
+responsive_glia_data= pd.read_csv("E:/glia projects/plasticity/summaries/responding_glia_count.csv").sort_values(by=['time group']).sort_values(by=['treatment'],ascending=False)
 responsive_glia_data=responsive_glia_data.loc[~((responsive_glia_data['time group']==30) | (pd.isna(responsive_glia_data['time group'])))]
 
-glia_transients_count_data= pd.read_csv("E:/glia projects/plasticity/summaries/glia_transient_count.csv").sort_values(by=['time group']).sort_values(by=['time group']).sort_values(by=['treatment'],ascending=False)
+glia_transients_count_data= pd.read_csv("E:/glia projects/plasticity/summaries/glia_transient_count.csv").sort_values(by=['time group']).sort_values(by=['treatment'],ascending=False)
 glia_transients_count_data=glia_transients_count_data.loc[~((glia_transients_count_data['time group']==30) | (pd.isna(glia_transients_count_data['time group'])))]
 
-glia_transients_data= pd.read_csv("E:/glia projects/plasticity/summaries/glia_training_glia_summary_by_cell.csv").sort_values(by=['time group']).sort_values(by=['time group']).sort_values(by=['treatment'],ascending=False)
+glia_transients_data= pd.read_csv("E:/glia projects/plasticity/summaries/glia_training_glia_summary_by_cell.csv").sort_values(by=['time group']).sort_values(by=['treatment'],ascending=False)
 glia_transients_data=glia_transients_data.loc[~((glia_transients_data['time group']==30) | (pd.isna(glia_transients_data['time group'])))]
 
 
