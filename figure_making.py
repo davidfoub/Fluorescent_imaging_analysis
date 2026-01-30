@@ -178,6 +178,7 @@ neuron_response_data=neuron_response_data.loc[~((neuron_response_data['time grou
 neuron_response_data_by_anml = neuron_response_data[["Animal","corrected peaks","corrected area","treatment","time group"]].groupby(['Animal','treatment','time group']).mean().reset_index()
 neuron_response_data_by_cell = neuron_response_data[["Animal","corrected peaks","corrected area","treatment","time group", 'trace']].groupby(['Animal','trace','treatment','time group']).mean().reset_index()
 
+
     #No training
 data_notrain_by_anml=neuron_response_data_by_anml[neuron_response_data_by_anml['treatment'].str.contains('without training')].sort_values(by=['treatment'],ascending=False)
 data_notrain_by_cell=neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('without training')].sort_values(by=['treatment'],ascending=False)
@@ -224,6 +225,30 @@ neuron_response_auc_exp.set_title("Neuron auc - training")
 neuron_response_auc_exp.set_ylabel("Normalized response auc (F/F0)")
 neuron_response_auc_exp.set_xlabel("Time (min)")
 sns.stripplot(x = "time group", y = "corrected area", data = data_training, size=5, hue="treatment", dodge=False, legend=False, ax=neuron_response_auc_exp, alpha=0.2)
+
+
+    #No capsaicin
+data_nocap_by_anml=neuron_response_data_by_anml[neuron_response_data_by_anml['treatment'].str.contains('no capsaicin')].sort_values(by=['treatment'],ascending=False)
+data_nocap_by_cell=neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('no capsaicin')].sort_values(by=['treatment'],ascending=False)
+
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
+sns.set_palette(palette)
+
+neuron_response_amp_plast = sns.pointplot(data=data_nocap_by_cell, x = "time group", y = "corrected peaks", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+neuron_response_amp_plast.set_ylim(top=1.5, bottom=0.5)
+neuron_response_amp_plast.set_title("Neuron peak amplitude - no capsaicin")
+neuron_response_amp_plast.set_ylabel("Normalized response amplitude (F/F0)")
+neuron_response_amp_plast.set_xlabel("Time (min)")
+sns.stripplot(data = data_nocap_by_cell, x = "time group", y = "corrected peaks", size=5, hue="treatment", dodge=False, legend=False, ax=neuron_response_amp_plast, alpha=0.4)
+
+
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
+neuron_response_auc_plast = sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=data_nocap_by_cell, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+neuron_response_auc_plast.set_ylim(top=1.5, bottom=0.5)
+neuron_response_auc_plast.set_title("Neuron auc - no capsaicin")
+neuron_response_auc_plast.set_ylabel("Normalized response amplitude (F/F0)")
+neuron_response_auc_plast.set_xlabel("Time (min)")
+sns.stripplot(x = "time group", y = "corrected area", data = data_nocap_by_cell, size=5, hue="treatment", dodge=False, legend=False, ax=neuron_response_auc_plast, alpha=0.4)
 
 
 #NEUROPIL DATA
@@ -385,15 +410,40 @@ pre_post_lfp_abs_amp = pd.concat([pre_lfp_abs_amp,post_lfp_abs_amp]).sort_values
 pre_post_lfp_abs_amp['zscore']=np.abs(stats.zscore(pre_post_lfp_abs_amp['normalized absolute amp']))
 pre_post_lfp_abs_amp=pre_post_lfp_abs_amp[pre_post_lfp_abs_amp['zscore']<=3]
 
+post_lfp_abs_amp['zscore']=np.abs(stats.zscore(post_lfp_abs_amp['normalized absolute amp']))
+post_lfp_abs_amp=post_lfp_abs_amp[post_lfp_abs_amp['zscore']<=3]
+
+post_stats={}
+for a in pd.unique(post_lfp_abs_amp['treatment']):
+    for b in pd.unique(post_lfp_abs_amp['treatment']):
+        if a!=b:
+
+            post_stats[a+"vs"+b]={"pvalue":[],"test":[]}
+            
+            sa=post_lfp_abs_amp['normalized absolute amp'][post_lfp_abs_amp['treatment']==a]
+            sb=post_lfp_abs_amp['normalized absolute amp'][post_lfp_abs_amp['treatment']==b]
+            if stats.shapiro(sa,nan_policy='omit').pvalue>0.01 and stats.shapiro(sb,nan_policy='omit').pvalue>0.01:
+                if stats.levene(sa,sb,axis=0,nan_policy='omit').pvalue>0.01:
+                    post_stats[a+"vs"+b]['pvalue'].append(stats.ttest_ind(sa,sb,equal_var=True,nan_policy='omit').pvalue)
+                    post_stats[a+"vs"+b]['test'].append("ttest_equal_var")
+                else:
+                    post_stats[a+"vs"+b]['pvalue'].append(stats.ttest_ind(sa,sb,equal_var=False,nan_policy='omit').pvalue)
+                    post_stats[a+"vs"+b]['test'].append("ttest_unequal_var")
+            else:
+                post_stats[a+"vs"+b]['pvalue'].append(stats.mannwhitneyu(sa, sb, nan_policy='omit').pvalue)
+                post_stats[a+"vs"+b]['test'].append("mwu")
+
+post_stats_df = pd.DataFrame(post_stats).T.iloc[[0,1,3]]
+
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (10,10), layout="constrained",)
 sns.set_palette(palette)
 
-field_abs_amp = sns.barplot(data=pre_post_lfp_abs_amp, x = "time", y = "normalized absolute amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+field_abs_amp = sns.barplot(data=post_lfp_abs_amp, x = "time", y = "normalized absolute amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #field_peak_amp.set_ylim(top=2, bottom=0)
-field_abs_amp.set_title("LFP normalized absolute amplitude")
-field_abs_amp.set_ylabel("Normalized amplitude (F/F0)")
+field_abs_amp.set_title("LFP normalized relative amplitude")
+field_abs_amp.set_ylabel("Normalized relative amplitude")
 field_abs_amp.set_xlabel("Timepoint t(min)")
-sns.stripplot(data = pre_post_lfp_abs_amp, x = "time", y = "normalized absolute amp", size=5, hue="treatment", dodge=True, linewidth=1, edgecolor="white",legend=False, ax=field_abs_amp)
+sns.stripplot(data = post_lfp_abs_amp, x = "time", y = "normalized absolute amp", size=5, hue="treatment", dodge=True, linewidth=1, edgecolor="white",legend=False, ax=field_abs_amp)
 
 
 #fiber volley
