@@ -56,7 +56,7 @@ def deltaF(data, percentile):
 
     return  deltaf, baselines
     
-def blur(raw, deltaf):
+def blur(raw, deltaf, w=3):
     """
     Returns a blurred trace from 'data'.
 
@@ -75,28 +75,40 @@ def blur(raw, deltaf):
    """
     nd_data = np.array(deltaf)
     # 95th quantile of the underlying, symmetric noise distribution
+    #create array that has m = cell rows and n = time/2 columns.
+    F_blur = sn.gaussian_filter1d(nd_data, sigma=5)
+    '''
+    F_blur=[]
+    for idx, trace in enumerate(nd_data):
+        F_blur.append(np.convolve(trace, np.ones(w), 'same') / w)
+    
     denom = norm.ppf(0.95)
     for idx, trace in enumerate(raw):
         coeffs=dwtn(np.array(trace),'db2')
         d=coeffs['d']
         sigma = np.median(np.abs(d)) / denom
         nd_data[idx]=sn.gaussian_filter1d(deltaf[idx], sigma=sigma)
-
-
-    return nd_data.tolist()
+    '''
+    
+    return F_blur #nd_data.tolist()
 
 
 def find_peaks_in_data(data, blurred, recording_name, threshold_multiplier, fr):
 
-    peaks = []
+    peaks=[]
+    peak_amp = []
     times = []
     area = [[] for i in range(len(data))]
     responses = [[] for i in range(len(data))]
+    thresholds=[]
     
     ''' scan over gaussian blurred data to find response windows then pull responses from raw data'''
     for row_index, row in enumerate(blurred):
-        peaks_found = find_peaks(row,height=1,width=6)
-        peaks.append(list(peaks_found[1]['peak_heights']))
+        thrsh=(threshold_multiplier*np.std(row, ddof=1)) + np.mean(row)
+        thresholds.append(thrsh)
+        peaks_found = find_peaks(row, height=thrsh, width=fr*3, rel_height=0.8)
+        peaks.append(peaks_found)
+        peak_amp.append(list(peaks_found[1]['peak_heights']))
         times.append(list(peaks_found[0]))
         
         for idx, peak in enumerate(peaks_found[0]):
@@ -115,7 +127,7 @@ def find_peaks_in_data(data, blurred, recording_name, threshold_multiplier, fr):
                     responses[row_index].append(data[row_index][start_of_window-fr:end_of_window+fr])
             
 
-    return area, peaks, times, responses
+    return peaks, area, peak_amp, times, responses, thresholds
 
     
 def output_csv(iscell_ids, baselines, deltaf, area, peaks, times, responses, output_dir, recording_name):
@@ -204,9 +216,7 @@ def pad(to_pad):
                     longest_resp_len=len(trace)
     
     for recording, cells in to_pad.items():
-        #print(recording)
         for cell, responses in enumerate(cells):
-            #print(cell)
             for response, trace in enumerate(responses):
                 trace_pad_width = longest_resp_len-len(trace)
                 if trace_pad_width%2 != 0:
@@ -218,7 +228,6 @@ def pad(to_pad):
             if cell_pad_width%2 != 0:
                 to_pad[recording][cell] = np.pad(np.array(responses),pad_width = ( (math.floor(cell_pad_width/2), math.ceil(cell_pad_width/2)), (0,0) ), mode = 'constant', constant_values = np.nan)
             else:
-                #print(len(responses))
                 to_pad[recording][cell] = np.pad(np.array(responses), pad_width = ( ( int(cell_pad_width/2), int(cell_pad_width/2) ), (0,0) ), mode = 'constant', constant_values = np.nan)
                 
     for recording, cells in to_pad.items():
@@ -227,10 +236,21 @@ def pad(to_pad):
     return to_pad
     
 
+
+
 def group_by_treatment(resp_db_to_group):
     treatments = {"cap_and_train": ["21sep22", "22jun22", "26may22", "13aug22"], "cap_notrain": ["01apr23", "02feb23", "30mar23"],
     "nocap_train": ["07sep22", "15jun22", "20jul22", "27apr22"], "nocap_notrain":["19may23", "23aug23"]}
-    
+
+    for recording, cells in resp_db_to_group.items():
+        resp_db_to_group[recording]= [cell for cell in cells if cell]
+
+    for recording, cells in resp_db_to_group.items():
+        for cell, responses in enumerate(cells): 
+            resp_db_to_group[recording][cell] = [trace for trace in responses if ~np.all(np.isnan(trace))]
+    to_pad=dict(resp_db_to_group)
+    padded_resp_db=pad(to_pad)
+
     grouped_by_treatment ={}
     
     for treatment, experiments in treatments.items():
@@ -238,7 +258,7 @@ def group_by_treatment(resp_db_to_group):
         for experiment in experiments:
             kl=[]
             vl=[]
-            for exp, traces in resp_db_to_group.items():
+            for exp, traces in padded_resp_db.items():
                 if experiment in exp:
                     kl.append(exp)
                     vl.append(traces)
@@ -278,7 +298,7 @@ def plot_averaged(grouped_by_treatment, time_list):
                 
                 title = treatment + i
                 plt.title(title)
-                plt.plot(normalized)
+                plt.plot(normalized)    
                 plt.ylim(0,1.5)
         
         plt.show()
@@ -299,8 +319,8 @@ def process_from_raw_traces(input_dir, output_dir):
     
     for file in files:
         #find the name of the recording that starts with an A and a number followed by _min and ends with a date in the format of ddmmmyy with dd and yy as ints and mmm as string
-        #recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group() #for plasticity data
-        recording_name = re.search("A\d{1}_S\d{1}.+\d{2}\D{3}\d{2}", file).group() #for BAPTA data
+        recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group() #for plasticity data
+        #recording_name = re.search("A\d{1}_S\d{1}.+\d{2}\D{3}\d{2}", file).group() #for BAPTA data
         
         #perform deltaF operation
         #try:
@@ -314,16 +334,16 @@ def process_from_raw_traces(input_dir, output_dir):
         #perform response metric operations 
         try:
             print("Extracting response metrics of " + file)
-            blurred = blur(raw_trace,deltaf)
+            blurred = blur(raw_trace,deltaf,w=15)
             
-            area, peaks, times, responses = find_peaks_in_data(deltaf, blurred, recording_name, threshold_multiplier = 2, fr=6)
+            peaks, area, peak_amps, times, responses, thresholds = find_peaks_in_data(deltaf, blurred, recording_name, threshold_multiplier = 1, fr=15)
             
             #Agregate the responses and the thresholds then filter them and group them by experimental condition
-            #resp_db[recording_name] = responses
+            resp_db[recording_name] = responses
             #thresh_db[recording_name] = thresholds
            
             #Save the data to files
-            output_csv(iscell_ids, baselines, deltaf, area, peaks, times, responses, output_dir, recording_name)
+            output_csv(iscell_ids, baselines, deltaf, area, peak_amps, times, responses, output_dir, recording_name)
             
         except KeyError:
             print(file + " contains no responses, so it was skipped!")
