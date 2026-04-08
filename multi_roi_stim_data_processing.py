@@ -37,7 +37,7 @@ def is_cell_responsive(file, recording_name, output_dir):
     fltrd_roi_idxs = [i for i in range(len(is_cell)) if is_cell[i][0] == True]
     
     #write data to csv files
-    np.savetxt(output_dir + recording_name +'_neuron_traces.csv', F_fltrd, delimiter=", ", fmt="% 1.4f")
+    np.savetxt(output_dir +'raw/'+ recording_name +'_neuron_traces.csv', F_fltrd, delimiter=", ", fmt="% 1.4f")
     
     return F_fltrd
 
@@ -108,12 +108,12 @@ def find_peaks_in_data(data, stims, recording_name):
     for row_index, row in enumerate(data):
         
         for i in range(5):
-            window = first_stim + i*915
+            window = stims.at[recording_name, "stim "+str(i+1)]
             if window - 15 < 0:
                 left = 0
-                right =window + 165 - first_stim
+                right =165
             elif window + 150 > 4499:
-                left = window - 165 + (4499 - window)
+                left = 4334
                 right = 4499
             else:
                 left = window - 15
@@ -122,7 +122,7 @@ def find_peaks_in_data(data, stims, recording_name):
             area[row_index].append(auc(list(range(left, right)), list(data[row_index][left:right])))
             
             if left == 0:
-                rolling_trgt = 15 - first_stim
+                rolling_trgt = 15 - window
                 responses[row_index].append(np.roll(np.array(data[row_index][left:right]), rolling_trgt))
             
             elif right == 4499:
@@ -328,7 +328,7 @@ def process_from_raw_traces(input_dir, output_dir, stims_timings):
         print(recording_name)
         #perform deltaF operation
         #try:
-        print("Normalizing " + file)
+        print("Normalizing " + recording_name)
         raw_trace = is_cell_responsive(file, recording_name, output_dir)
         baselines = calculate_baselines(raw_trace)
         deltaf = deltaF(raw_trace, baselines)
@@ -337,20 +337,20 @@ def process_from_raw_traces(input_dir, output_dir, stims_timings):
         #    pass
         
         #perform response metric operations 
-        try:
-            print("Extracting response metrics of " + file)
-            area, peaks, times, thresholds, responses = find_peaks_in_data(deltaf, stims, recording_name)
+        #try:
+        print("Extracting response metrics of " + recording_name)
+        area, peaks, times, thresholds, responses = find_peaks_in_data(deltaf, stims, recording_name)
+    
+        #Save the data to files
+        output_csv(baselines, deltaf, area, peaks, times, thresholds, responses, output_dir, recording_name)
         
-            #Save the data to files
-            output_csv(baselines, deltaf, area, peaks, times, thresholds, responses, output_dir, recording_name)
-            
-            #Agregate the responses and the thresholds then filter them and group them by experimental condition
-            resp_db[recording_name] = np.array(responses)
-            thresh_db[recording_name] = thresholds
-            
-        except KeyError:
-            print(file + " contains no responses, so it was skipped!")
-            pass
+        #Agregate the responses and the thresholds then filter them and group them by experimental condition
+        resp_db[recording_name] = np.array(responses)
+        thresh_db[recording_name] = thresholds
+        
+        #except KeyError:
+         #   print(recording_name + " contains no responses, so it was skipped!")
+          #  pass
         
     grouped_by_treatment = group_by_treatment(resp_db, thresh_db)
     
@@ -381,7 +381,7 @@ def process_from_responses(input_dir, output_dir):
             pickle.dump(grouped_by_treatment, of)
 
 #process_from_responses(input_dir = 'C:\\Users\\Biocraze\\Documents\\Ruthazer lab\\glia projects\\plasticity\\analysis\\max proj roi activity\\data-peaks\\', output_dir = "C:\\Users\\Biocraze\\Documents\\Ruthazer lab\\glia projects\\plasticity\\analysis\\")
-process_from_raw_traces(input_dir = "E:/glia projects/plasticity/data", output_dir = "C:\\Users\\Biocraze\\Documents\\Ruthazer lab\\glia projects\\plasticity\\analysis\\new max proj roi activity\\", stims_timings = "C:/Users/BioCraze/Documents/Ruthazer lab/glia projects/plasticity/summaries/stim_timings.csv")
+process_from_raw_traces(input_dir = "E:/glia projects/plasticity/data", output_dir = "E:/glia projects/plasticity/analysis/new mean proj roi activity/", stims_timings = "E:/glia projects/plasticity/summaries/stim_timings.csv")
 
 #access roi location to match based on position
 #for roi in iscell:

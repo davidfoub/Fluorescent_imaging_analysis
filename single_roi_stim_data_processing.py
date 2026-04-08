@@ -72,16 +72,14 @@ def find_peaks_in_data(data, stims, animal):
     area = []
     threshold = []
     responses = []
-    
-    first_stim = stims.at[animal, "stim 1"]
 
     for i in range(5):
-        window = first_stim + i*915
+        window = stims.at[animal, "stim "+str(i+1)]
         if window - 15 < 0:
             left = 0
-            right =window + 165 - first_stim
+            right =165
         elif window + 150 > 4499:
-            left = window - 165 + (4499 - window)
+            left = 4334
             right = 4499
         else:
             left = window - 15
@@ -90,7 +88,7 @@ def find_peaks_in_data(data, stims, animal):
         area.append(auc(list(range(left, right)), list(data[left:right])))
          
         if left == 0:
-            rolling_trgt = 15 - first_stim
+            rolling_trgt = 15 - window
             responses.append(np.roll(np.array(data[left:right]), rolling_trgt))
         
         elif right == 4499:
@@ -177,7 +175,7 @@ def mean_stack(stacked):
 
 def group_by_treatment(resp_db, thresh_db):
     treatments = {"cap_and_train": ["21sep22", "22jun22", "26may22", "13aug22"], "cap_notrain": ["01apr23", "02feb23", "30mar23"],
-    "nocap_train": ["07sep22", "15jun22", "20jul22", "27apr22"], "nocap_notrain":["19may23", "23aug23"]}
+    "nocap_train": ["07sep22", "15jun22", "20jul22", "27apr22"], "nocap_notrain":["19may23", "23aug23"], "apv_train":["06aug25","19aug25","20aug25"]}
     
     fltrd_resp_db = thresh_filter_responses(resp_db, thresh_db)
     
@@ -242,11 +240,11 @@ def make_plots(grouped_by_treatment):
     
 def process_from_raw_traces():
     #Run data processing
-    input_dir = 'C:/Users/BioCraze/Documents/Ruthazer lab/glia projects/plasticity/analysis/neuropil activity/raw/'
-    files =[i.path for i in os.scandir(input_dir) if i.path.endswith('.csv')]
-    output_dir = "C:/Users/BioCraze/Documents/Ruthazer lab/glia projects/plasticity/analysis/neuropil activity/"
+    input_dir = 'E:/glia projects/plasticity/analysis/neuropil activity/raw/'
+    files =[i.path for i in os.scandir(input_dir) if i.path.endswith('.csv') and 'capapplication' not in i.path]
+    output_dir = "E:/glia projects/plasticity/analysis/neuropil activity/"
     
-    stims_timings = "C:/Users/BioCraze/Documents/Ruthazer lab/glia projects/plasticity/summaries/stim_timings.csv"
+    stims_timings = "E:/glia projects/plasticity/summaries/stim_timings.csv"
     stims = pd.read_csv(stims_timings)
     stims = stims.set_index("file")
     
@@ -256,18 +254,18 @@ def process_from_raw_traces():
     for file in files:
         #perform deltaF operation
         raw_trace = read_in_neuropil_csv(file)
-        #baselines = calculate_neuropil_baselines(raw_trace)
-        #deltaf = neuropil_deltaF(raw_trace, baselines)
+        baselines = calculate_neuropil_baselines(raw_trace)
+        deltaf = neuropil_deltaF(raw_trace, baselines)
         
         #perform response metric operations
         recording_name = re.search("A\d{1}_min.+\d{2}\D{3}\d{2}", file).group() #find the name of the recording that starts with an A and ends with a date in the format of ddmmmyy with dd and yy as ints and mmm as string
         
         try:
             print('working on ' + file)
-            area, peaks, times, thresholds, responses = find_peaks_in_data(raw_trace, stims, recording_name)
+            area, peaks, times, thresholds, responses = find_peaks_in_data(deltaf, stims, recording_name)
         
             #Save the data to files
-            #output_neuropil_csv(baselines, deltaf, area, peaks, times, thresholds, responses, output_dir, recording_name)
+            output_neuropil_csv(baselines, deltaf, area, peaks, times, thresholds, responses, output_dir, recording_name)
         
             #Agregate the responses and the thresholds then filter them and group them by experimental condition
             resp_db[recording_name] = np.array(responses)
@@ -309,8 +307,8 @@ def process_from_responses():
     with open(output_dir + 'grouped_neuropil_responses_by_treatment' + str(date.today()) + '.pkl', 'wb') as of:
         pickle.dump(grouped_by_treatment, of)
 
-process_from_responses()
-#process_from_raw_traces()
+#process_from_responses()
+process_from_raw_traces()
 
 '''
 grouped_by_treatment = pickle.load(open("C:/Users/BioCraze/Documents/Ruthazer lab/glia_training/analysis/neuropil activity/grouped_neuropil_responses_by_treatment2023-08-16.pkl",'rb'))
