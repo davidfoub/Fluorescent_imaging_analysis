@@ -228,8 +228,8 @@ sns.stripplot(x = "time group", y = "corrected area", data = data_training, size
 
 
     #No capsaicin
-data_nocap_by_anml=neuron_response_data_by_anml[neuron_response_data_by_anml['treatment'].str.contains('no capsaicin')].sort_values(by=['treatment'],ascending=False)
-data_nocap_by_cell=neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('no capsaicin')].sort_values(by=['treatment'],ascending=False)
+data_nocap_by_anml=pd.concat([neuron_response_data_by_anml[neuron_response_data_by_anml['treatment'].str.contains('no capsaicin')].sort_values(by=['treatment'],ascending=False),neuron_response_data_by_anml[neuron_response_data_by_anml['treatment'].str.contains('APV')].sort_values(by=['treatment'],ascending=False)],ignore_index=True)
+data_nocap_by_cell=pd.concat([neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('no capsaicin')].sort_values(by=['treatment'],ascending=False),neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('APV')].sort_values(by=['treatment'],ascending=False)],ignore_index=True)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
 sns.set_palette(palette)
