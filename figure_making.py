@@ -339,9 +339,9 @@ ax.set_title("Matching cells")
 #FIGURES FOR LOCAL FIELD POTENTIALS
 
 field_data = pd.read_csv('E:/glia projects/field recordings/field_potential_data.csv')
-field_data=field_data[(field_data["series time"]>=0)&(field_data["series time"]<=47.5)].sort_values(by=["treatment"],ascending=False)
+field_data=field_data[(field_data["series time"]>=0)&(field_data["series time"]<=62.5)].sort_values(by=["treatment"],ascending=False)
 field_stats = {}
-times=np.arange(0,50,2.5)
+times=np.arange(0,65,2.5)
 
 #stats
 for a in pd.unique(field_data['treatment']):
@@ -398,30 +398,32 @@ field_abs_amp.set_ylabel("Normalized amplitude (F/F0)")
 field_abs_amp.set_xlabel("Time (min)")
 sns.stripplot(data = field_data, x = "series time", y = "normalized absolute amp", size=5, hue="treatment", dodge=False, legend=False, ax=field_abs_amp, alpha=0.4)
 
-#before and after barchart for absolute amp
-pre_lfp_abs_amp = field_data[(field_data["series time"]==0)|(field_data["series time"]==2.5)][["normalized absolute amp","treatment"]]
-pre_lfp_abs_amp["time"]="t0"
-post_lfp_abs_amp = field_data[(field_data["series time"]==45.0)|(field_data["series time"]==47.5)][["normalized absolute amp","treatment"]]
-post_lfp_abs_amp["time"]="t50"
+#before and after barchart for peak amp
+pre_lfp_peak_amp = field_data[(field_data["series time"]==5)|(field_data["series time"]==7.5)][["normalized peak amp","file path"]].groupby("file path").mean().reset_index().merge(field_data[["file path","treatment"]].drop_duplicates(),how='inner',on='file path')
+pre_lfp_peak_amp = pre_lfp_peak_amp[pre_lfp_peak_amp["treatment"].isin(['theta_ltd','theta_control','NEpre_ltd','NE_ltd'])]
+pre_lfp_peak_amp["time"]="t0"
+post_lfp_peak_amp = field_data[(field_data["series time"]==60)|(field_data["series time"]==62.5)][["normalized peak amp","file path"]].groupby("file path").mean().reset_index().merge(field_data[["file path","treatment"]].drop_duplicates(),how='inner',on='file path')
+post_lfp_peak_amp = post_lfp_peak_amp[post_lfp_peak_amp["treatment"].isin(['theta_ltd','theta_control','NEpre_ltd','NE_ltd'])]
+post_lfp_peak_amp["time"]="t45"
 
-pre_post_lfp_abs_amp = pd.concat([pre_lfp_abs_amp,post_lfp_abs_amp]).sort_values(by=['treatment'],ascending=False)
+pre_post_lfp_peak_amp = pd.concat([pre_lfp_peak_amp,post_lfp_peak_amp]).sort_values(by=['treatment'],ascending=False)
 
 #outlier check(threshold of 3)
-pre_post_lfp_abs_amp['zscore']=np.abs(stats.zscore(pre_post_lfp_abs_amp['normalized absolute amp']))
-pre_post_lfp_abs_amp=pre_post_lfp_abs_amp[pre_post_lfp_abs_amp['zscore']<=3]
+pre_post_lfp_peak_amp['zscore']=np.abs(stats.zscore(pre_post_lfp_peak_amp['normalized peak amp']))
+pre_post_lfp_peak_amp=pre_post_lfp_peak_amp[pre_post_lfp_peak_amp['zscore']<=3]
 
-post_lfp_abs_amp['zscore']=np.abs(stats.zscore(post_lfp_abs_amp['normalized absolute amp']))
-post_lfp_abs_amp=post_lfp_abs_amp[post_lfp_abs_amp['zscore']<=3]
+post_lfp_peak_amp['zscore']=np.abs(stats.zscore(post_lfp_peak_amp['normalized peak amp']))
+post_lfp_peak_amp=post_lfp_peak_amp[post_lfp_peak_amp['zscore']<=3]
 
 post_stats={}
-for a in pd.unique(post_lfp_abs_amp['treatment']):
-    for b in pd.unique(post_lfp_abs_amp['treatment']):
+for a in pd.unique(post_lfp_peak_amp['treatment']):
+    for b in pd.unique(post_lfp_peak_amp['treatment']):
         if a!=b:
 
             post_stats[a+"vs"+b]={"pvalue":[],"test":[]}
             
-            sa=post_lfp_abs_amp['normalized absolute amp'][post_lfp_abs_amp['treatment']==a]
-            sb=post_lfp_abs_amp['normalized absolute amp'][post_lfp_abs_amp['treatment']==b]
+            sa=post_lfp_peak_amp['normalized peak amp'][post_lfp_peak_amp['treatment']==a]
+            sb=post_lfp_peak_amp['normalized peak amp'][post_lfp_peak_amp['treatment']==b]
             if stats.shapiro(sa,nan_policy='omit').pvalue>0.01 and stats.shapiro(sb,nan_policy='omit').pvalue>0.01:
                 if stats.levene(sa,sb,axis=0,nan_policy='omit').pvalue>0.01:
                     post_stats[a+"vs"+b]['pvalue'].append(stats.ttest_ind(sa,sb,equal_var=True,nan_policy='omit').pvalue)
@@ -438,12 +440,12 @@ post_stats_df = pd.DataFrame(post_stats).T.iloc[[0,1,3]]
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (10,10), layout="constrained",)
 sns.set_palette(palette)
 
-field_abs_amp = sns.barplot(data=post_lfp_abs_amp, x = "time", y = "normalized absolute amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+field_peak_amp = sns.barplot(data=post_lfp_peak_amp, x = "time", y = "normalized peak amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #field_peak_amp.set_ylim(top=2, bottom=0)
-field_abs_amp.set_title("LFP normalized relative amplitude")
-field_abs_amp.set_ylabel("Normalized relative amplitude")
-field_abs_amp.set_xlabel("Timepoint t(min)")
-sns.stripplot(data = post_lfp_abs_amp, x = "time", y = "normalized absolute amp", size=5, hue="treatment", dodge=True, linewidth=1, edgecolor="white",legend=False, ax=field_abs_amp)
+field_peak_amp.set_title("LFP normalized peak amplitude")
+field_peak_amp.set_ylabel("Normalized peak amplitude")
+field_peak_amp.set_xlabel("Timepoint t(min)")
+sns.stripplot(data = post_lfp_peak_amp, x = "time", y = "normalized peak amp", size=5, hue="treatment", dodge=True, linewidth=1, edgecolor="white",legend=False, ax=field_peak_amp)
 
 
 #fiber volley
