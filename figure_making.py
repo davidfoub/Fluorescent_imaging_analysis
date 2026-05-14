@@ -89,7 +89,9 @@ mpl.rcParams["axes.edgecolor"]=colour
 mpl.rcParams["figure.edgecolor"]=colour
 mpl.rcParams["figure.facecolor"]='k'
 mpl.rcParams["font.size"]=20
-palette = ["#1be6ec", "#e51bec"]
+palette_2c = ["#1CF3F9", "#E11BE8"]
+
+palette_4c = ["#1be6ec", "#e51bec","#19D005","#FE6100"]
 
 #Figures for glia plasticity
 #GLIA DATA
@@ -105,7 +107,7 @@ glia_transients_data=glia_transients_data.loc[~((glia_transients_data['time grou
 
     #no training
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (10,8), layout="constrained")
-sns.set_palette(palette)
+sns.set_palette(palette_2c)
 
 responsive_glia_ctrl = sns.pointplot(x = "time group", y = "Corrected cell count", hue = "treatment", data=responsive_glia_data[responsive_glia_data['treatment'].str.contains('without training')], errorbar='se', capsize=0.2, ax=axes)
 responsive_glia_ctrl.set_ylim(top=max(responsive_glia_data[responsive_glia_data['treatment'].str.contains('without training')]["Corrected cell count"])*1.2, bottom=min(responsive_glia_data[responsive_glia_data['treatment'].str.contains('without training')]["Corrected cell count"])*0.6)
@@ -155,9 +157,9 @@ glia_transients_count_exp.set_ylabel('Normalized number of active glia')
 glia_transients_count_exp.set_xlabel('Time (min)')
 sns.stripplot(x = "time group", y = "normalized response count", data = glia_transients_count_data[glia_transients_count_data['treatment'].str.contains('with training')], size=5, hue="treatment", dodge=False, legend=False, alpha=0.5, ax=glia_transients_count_exp)
 
-fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (10,8), layout="constrained")
-glia_transients_amp_exp= sns.pointplot(x = "time group", y = "peaks", hue = "treatment", data=glia_transients_data[glia_transients_data['treatment'].str.contains('with training')], errorbar='se', capsize=0.2, ax=axes)
-glia_transients_amp_exp.set_ylim(top=max(glia_transients_data[glia_transients_data['treatment'].str.contains('with training')]["peaks"])*1.2, bottom=min(glia_transients_data[glia_transients_data['treatment'].str.contains('with training')]["peaks"])-min(glia_transients_data["peaks"])*1.2)
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (16,8), layout="constrained")
+glia_transients_amp_exp= sns.pointplot(x = "time group", y = "peaks", hue = "treatment", data=glia_transients_data[glia_transients_data['treatment'].str.contains('with training')], errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+glia_transients_amp_exp.set_ylim(top=3, bottom=min(glia_transients_data[glia_transients_data['treatment'].str.contains('with training')]["peaks"])-min(glia_transients_data["peaks"]))
 glia_transients_amp_exp.set_title("Glia peak amplitude - training")
 glia_transients_amp_exp.set_ylabel('Normalized number of active glia')
 glia_transients_amp_exp.set_xlabel('Time (min)')
@@ -184,7 +186,7 @@ data_notrain_by_anml=neuron_response_data_by_anml[neuron_response_data_by_anml['
 data_notrain_by_cell=neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('without training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
-sns.set_palette(palette)
+sns.set_palette(palette_2c)
 
 neuron_response_amp_ctrl = sns.pointplot(data=data_notrain_by_cell, x = "time group", y = "corrected peaks", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuron_response_amp_ctrl.set_ylim(top=1.5, bottom=0.5)
@@ -209,7 +211,7 @@ data_training_by_cell = neuron_response_data_by_cell[neuron_response_data_by_cel
 data_training = neuron_response_data[neuron_response_data['treatment'].str.contains('with training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
-sns.set_palette(palette)
+sns.set_palette(palette_2c)
 
 neuron_response_amp_exp= sns.pointplot(x = "time group", y = "corrected peaks", hue = "treatment", data=data_training, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuron_response_amp_exp.set_ylim(top=1.2, bottom=0.6)
@@ -232,7 +234,7 @@ data_nocap_by_anml=pd.concat([neuron_response_data_by_anml[neuron_response_data_
 data_nocap_by_cell=pd.concat([neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('no capsaicin')].sort_values(by=['treatment'],ascending=False),neuron_response_data_by_cell[neuron_response_data_by_cell['treatment'].str.contains('APV')].sort_values(by=['treatment'],ascending=False)],ignore_index=True)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
-sns.set_palette(palette)
+sns.set_palette(palette_2c)
 
 neuron_response_amp_plast = sns.pointplot(data=data_nocap_by_cell, x = "time group", y = "corrected peaks", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuron_response_amp_plast.set_ylim(top=1.5, bottom=0.5)
@@ -261,11 +263,24 @@ neuropil_data_raw = pd.read_csv("E:/glia projects/plasticity/summaries/neuropil_
 neuropil_data_raw=neuropil_data_raw.loc[~((neuropil_data_raw['time group']==30) | (pd.isna(neuropil_data_raw['time group'])))]
 neuropil_data_raw_by_anml = neuropil_data_raw[["animal","Normalized au peaks","treatment","time group"]].groupby(['animal','treatment','time group']).mean().reset_index()
 
+    #all groups
+        #raw
+fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
+sns.set_palette(palette_4c)
+neuropil_raw_amp_all= sns.pointplot(x = "time group", y = "Normalized au peaks", hue = "treatment", data=neuropil_data_raw_by_anml, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
+neuropil_raw_amp_all.set_title("Neuropil response amplitude (a.u.)")
+neuropil_raw_amp_all.set_ylabel("Normalized response amplitude (a.u.)")
+neuropil_raw_amp_all.set_xlabel("Time (min)")
+sns.stripplot(x = "time group", y = "Normalized au peaks", data = neuropil_data_raw_by_anml, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_raw_amp_all, alpha=1)
+
+
     #without training
         #delta f
 neuropil_norm_anml_ctrl = neuropil_data_norm_by_anml[neuropil_data_norm_by_anml['treatment'].str.contains('without training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
+sns.set_palette(palette_2c)
+
 neuropil_norm_auc_ctrl= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=neuropil_norm_anml_ctrl, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuropil_norm_auc_ctrl.set_title("Neuropil auc - without training")
 neuropil_norm_auc_ctrl.set_ylabel("Normalized response AUC (F/F0)")
@@ -287,17 +302,17 @@ sns.stripplot(x = "time group", y = "Normalized au peaks", data = neuropil_raw_a
 neuropil_norm_anml_training = neuropil_data_norm_by_anml[neuropil_data_norm_by_anml['treatment'].str.contains('with training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
-neuropil_response_auc_exp= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=neuropil_norm_anml_training, errorbar='se', capsize=0.1, ax=axes)
-neuropil_response_auc_exp.set_title("Neuropil auc - with training")
-neuropil_response_auc_exp.set_ylabel("Normalized response AUC (F/F0)")
-neuropil_response_auc_exp.set_xlabel("Time (min)")
-sns.stripplot(x = "time group", y = "corrected area", data = neuropil_norm_anml_training, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_response_auc_exp, alpha=1)
+neuropil_norm_auc_exp= sns.pointplot(x = "time group", y = "corrected area", hue = "treatment", data=neuropil_norm_anml_training, errorbar='se', capsize=0.1, ax=axes)
+neuropil_norm_auc_exp.set_title("Neuropil auc - with training")
+neuropil_norm_auc_exp.set_ylabel("Normalized response AUC (F/F0)")
+neuropil_norm_auc_exp.set_xlabel("Time (min)")
+sns.stripplot(x = "time group", y = "corrected area", data = neuropil_norm_anml_training, size=5, hue="treatment", dodge=False, legend=False, ax=neuropil_norm_auc_exp, alpha=1)
         
         #raw
 neuropil_raw_anml_exp = neuropil_data_raw_by_anml[neuropil_data_raw_by_anml['treatment'].str.contains('with training')].sort_values(by=['treatment'],ascending=False)
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained")
-neuropil_raw_amp_exp= sns.pointplot(x = "time group", y = "Normalized au peaks", hue = "treatment", data=neuropil_raw_anml_exp, errorbar='se', capsize=0.1, ax=axes)
+neuropil_raw_amp_exp= sns.pointplot(x = "time group", y = "Normalized au peaks", hue = "treatment", data=neuropil_raw_anml_exp, errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 neuropil_raw_amp_exp.set_title("Neuropil amplitude - with training")
 neuropil_raw_amp_exp.set_ylabel("Normalized response amplitude (a.u.)")
 neuropil_raw_amp_exp.set_xlabel("Time (min)")
@@ -376,9 +391,9 @@ for treatment in field_stats_df.index:
 field_stats_df_reconfig=pd.DataFrame(reconfig).T
 field_stats_df_reconfig.to_csv("E:/glia projects/field recordings/field_potential_stats.csv")
 
-#peak amplitude
+#realtive amplitude
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
-sns.set_palette(palette)
+sns.set_palette(palette_2c)
 
 field_peak_amp = sns.pointplot(data=field_data, x = "series time", y = "normalized peak amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #field_peak_amp.set_ylim(top=2, bottom=0)
@@ -389,7 +404,7 @@ sns.stripplot(data = field_data, x = "series time", y = "normalized peak amp", s
 
 #absolute amplitude
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
-sns.set_palette(palette)
+sns.set_palette(palette_2c)
 
 field_abs_amp = sns.pointplot(data=field_data, x = "series time", y = "normalized absolute amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #field_peak_amp.set_ylim(top=2, bottom=0)
@@ -399,11 +414,13 @@ field_abs_amp.set_xlabel("Time (min)")
 sns.stripplot(data = field_data, x = "series time", y = "normalized absolute amp", size=5, hue="treatment", dodge=False, legend=False, ax=field_abs_amp, alpha=0.4)
 
 #before and after barchart for peak amp
-pre_lfp_peak_amp = field_data[(field_data["series time"]==5)|(field_data["series time"]==7.5)][["normalized peak amp","file path"]].groupby("file path").mean().reset_index().merge(field_data[["file path","treatment"]].drop_duplicates(),how='inner',on='file path')
-pre_lfp_peak_amp = pre_lfp_peak_amp[pre_lfp_peak_amp["treatment"].isin(['theta_ltd','theta_control','NEpre_ltd','NE_ltd'])]
+pre_lfp_peak_amp = field_data[(field_data["series time"]==0)|(field_data["series time"]==2.5)][["normalized peak amp","file path"]].groupby("file path").mean().reset_index().merge(field_data[["file path","treatment"]].drop_duplicates(),how='inner',on='file path')
+#pre_lfp_peak_amp = pre_lfp_peak_amp[pre_lfp_peak_amp["treatment"].isin(['theta_ltd','theta_control','NEpre_ltd','NE_ltd'])]
+pre_lfp_peak_amp = pre_lfp_peak_amp[pre_lfp_peak_amp["treatment"].isin(['control','NE','NBQX_APV'])]
 pre_lfp_peak_amp["time"]="t0"
-post_lfp_peak_amp = field_data[(field_data["series time"]==60)|(field_data["series time"]==62.5)][["normalized peak amp","file path"]].groupby("file path").mean().reset_index().merge(field_data[["file path","treatment"]].drop_duplicates(),how='inner',on='file path')
-post_lfp_peak_amp = post_lfp_peak_amp[post_lfp_peak_amp["treatment"].isin(['theta_ltd','theta_control','NEpre_ltd','NE_ltd'])]
+post_lfp_peak_amp = field_data[(field_data["series time"]==42.5)|(field_data["series time"]==45)][["normalized peak amp","file path"]].groupby("file path").mean().reset_index().merge(field_data[["file path","treatment"]].drop_duplicates(),how='inner',on='file path')
+#post_lfp_peak_amp = post_lfp_peak_amp[post_lfp_peak_amp["treatment"].isin(['theta_ltd','theta_control','NEpre_ltd','NE_ltd'])].sort_values(by=['treatment'],ascending=True,key=lambda x:x.map({'theta_control':0,'theta_ltd':1,'NE_ltd':2,'NEpre_ltd':3}))
+post_lfp_peak_amp = post_lfp_peak_amp[post_lfp_peak_amp["treatment"].isin(['control','NE','NBQX_APV'])].sort_values(by=['treatment'],ascending=True,key=lambda x:x.map({'control':0,'NE':1,'NBQX_APV':2}))
 post_lfp_peak_amp["time"]="t45"
 
 pre_post_lfp_peak_amp = pd.concat([pre_lfp_peak_amp,post_lfp_peak_amp]).sort_values(by=['treatment'],ascending=False)
@@ -438,7 +455,7 @@ for a in pd.unique(post_lfp_peak_amp['treatment']):
 post_stats_df = pd.DataFrame(post_stats).T.iloc[[0,1,3]]
 
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (10,10), layout="constrained",)
-sns.set_palette(palette)
+sns.set_palette(palette_4c)
 
 field_peak_amp = sns.barplot(data=post_lfp_peak_amp, x = "time", y = "normalized peak amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #field_peak_amp.set_ylim(top=2, bottom=0)
@@ -450,7 +467,7 @@ sns.stripplot(data = post_lfp_peak_amp, x = "time", y = "normalized peak amp", s
 
 #fiber volley
 fig,axes =plt.subplots(nrows=1, ncols=1, figsize = (20,10), layout="constrained",)
-sns.set_palette(palette)
+sns.set_palette(palette_2c)
 
 fv_amp = sns.pointplot(data=field_data, x = "series time", y = "normalized fv amp", hue = "treatment", errorbar='se', capsize=0.1, err_kws={'color':'white','linewidth':2}, ax=axes)
 #fv_amp.set_ylim(top=2, bottom=0)
